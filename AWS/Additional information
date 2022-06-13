@@ -1,0 +1,102 @@
+Create a file format:
+
+CREATE FILE FORMAT <name>
+TYPE = 'CSV'
+FIELD_DELIMITER = '|'
+SKIP_HEADER = 1;
+Create an external stage:
+
+externalStageParams (for Amazon S3) ::=
+  URL = 's3://[//]'
+
+  [ { STORAGE_INTEGRATION =  } | { CREDENTIALS = ( {  { AWS_KEY_ID = `` AWS_SECRET_KEY = `` [ AWS_TOKEN = `` ] } | AWS_ROLE = ``  } ) ) }` ]
+  [ ENCRYPTION = ( [ TYPE = 'AWS_CSE' ] [ MASTER_KEY = '' ] |
+                   [ TYPE = 'AWS_SSE_S3' ] |
+                   [ TYPE = 'AWS_SSE_KMS' [ KMS_KEY_ID = '' ] |
+                   [ TYPE = NONE ] ) 
+## Create a table:
+
+CREATE [ OR REPLACE ] [ { [ LOCAL | GLOBAL ] TEMP[ORARY] | VOLATILE } | TRANSIENT ] TABLE [ IF NOT EXISTS ]
+  <table_name>
+    ( <col_name> <col_type> [ { DEFAULT <expr>
+                               | { AUTOINCREMENT | IDENTITY } [ ( <start_num> , <step_num> ) | START <num> INCREMENT <num> ] } ]
+                                /* AUTOINCREMENT / IDENTITY supported only for numeric data types (NUMBER, INT, etc.) */
+                            [ inlineConstraint ]
+      [ , <col_name> <col_type> ... ]
+      [ , outoflineConstraint ]
+      [ , ... ] )
+  [ CLUSTER BY ( <expr> [ , <expr> , ... ] ) ]
+  [ STAGE_FILE_FORMAT = ( { FORMAT_NAME = '<file_format_name>'
+                           | TYPE = { CSV | JSON | AVRO | ORC | PARQUET | XML } [ formatTypeOptions ] } ) ]
+  [ STAGE_COPY_OPTIONS = ( copyOptions ) ]
+  [ DATA_RETENTION_TIME_IN_DAYS = <num> ]
+  [ COPY GRANTS ]
+  [ COMMENT = '<string_literal>' ]
+Show stages:
+
+SHOW STAGES;
+Create a pipe:
+
+CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] 
+  [ AUTO_INGEST = [ TRUE | FALSE ] ]
+  [ AWS_SNS_TOPIC =  ]
+  [ INTEGRATION = '' ]
+  [ COMMENT = '' ]
+  AS 
+Show pipes:
+
+SHOW PIPES [ LIKE '<pattern>' ]           
+           [ IN { ACCOUNT | [ DATABASE ] <db_name> | [ SCHEMA ] <schema_name> } ]
+Create a storage integration:
+
+CREATE STORAGE INTEGRATION <integration_name>
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = S3
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = '<iam_role>'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://<bucket>/<path>/', 's3://<bucket>/<path>/')
+  [ STORAGE_BLOCKED_LOCATIONS = ('s3://<bucket>/<path>/', 's3://<bucket>/<path>/') ]
+Example:
+
+create storage integration s3_int
+  type = external_stage
+  storage_provider = s3
+  enabled = true
+  storage_aws_role_arn = 'arn:aws:iam::001234567890:role/myrole'
+  storage_allowed_locations = ('s3://mybucket1/mypath1/', 's3://mybucket2/mypath2/')
+  storage_blocked_locations = ('s3://mybucket1/mypath1/sensitivedata/', 's3://mybucket2/mypath2/sensitivedata/');
+For more information about this step, see Configuring a Snowflake storage integration to access Amazon S3 from the Snowflake documentation.
+
+Describe an integration:
+
+DESC INTEGRATION <integration_name>;
+S3 bucket policy:
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+              "s3:PutObject",
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+              "s3:DeleteObject",
+              "s3:DeleteObjectVersion"
+            ],
+            "Resource": "arn:aws:s3::://*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::",
+            "Condition": {
+                "StringLike": {
+                    "s3:prefix": [
+                        "/*"
+                    ]
+                }
+            }
+        }
+    ]
+}
